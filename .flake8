@@ -1,0 +1,8 @@
+[flake8]
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    .mypy_cache,
+    vllm-0.10.1
+max-line-length = 120
