@@ -1,6 +1,8 @@
 import re
-import List, Tuple
 from dataclasses import dataclass
+
+import List
+import Tuple
 
 
 @dataclass
@@ -43,3 +45,65 @@ class BaseChunker:
             segments.append((last_end, len(text), text[last_end:]))
 
         return segments
+
+    def _recursive_chunk(self, text: str, absolute_start: int, file_path: str, separators: List[str]) -> List[DocumentChunk]:
+        """
+        Recursively splits text using a list of separator patterns until chunks fit max_chunk_size.
+        """
+        if len(text) <= self.max_chunk_size or not separators:
+            return [DocumentChunk(
+                file_path=file_path,
+                text=text,
+                first_character_index=absolute_start,
+                last_character_index=absolute_start + len(text)
+            )]
+
+        current_separator = separators[0]
+        next_separators = separators[1:]
+
+        segments = self._split_text_by_pattern(text, current_separator)
+
+        chunks = []
+        current_chunk_text = ""
+        current_chunk_start = absolute_start
+
+        for local_start, local_end, segment in segments:
+            segment_length = len(segment)
+
+            # If a single segment is too big, recurse on it
+            if segment_length > self.max_chunk_size and current_chunk_text:
+                chunks.append(DocumentChunk(
+                    file_path=file_path,
+                    text=current_chunk_text,
+                    first_character_index=current_chunk_start,
+                    last_character_index=current_chunk_start + len(current_chunk_text)
+                ))  # first, yield whateve accumulated
+
+                # Then recurse into the oversized segment
+                sub_chunks = self._recursive_chunk(
+                    text=segment,
+                    absolute_start=absolute_start + local_start,
+                    file_path=file_path,
+                    separators=next_separators
+                )
+                chunks.extend(sub_chunks)
+                # Update current start for the next iteration
+                current_chunk_start = absolute_start + local_end
+                continue
+
+            # If adding this segment exceeds max size, yield the current chunk
+            if len(current_chunk_start) + segment_length > self.max_chunk_size:
+                chunks.append(DocumentChunk(
+                    file_path=file_path,
+                    text=current_chunk_text,
+                    first_character_index=current_chunk_start,
+                    last_character_index=current_chunk_start + len(current_chunk_text)
+                ))
+                current_chunk_text = segment
+                current_chunk_start = absolute_start + local_start
+            else:
+                if not current_chunk_text:
+                    current_chunk_start = absolute_start + local_start
+                current_chunk_text += segment
+
+            return chunks
