@@ -24,8 +24,16 @@ class ProjectIndexer:
 
 
     def _get_valid_files(self) -> List[Path]:
-        ... # stopped here.. (implement valid source files .py .md .txt ...)
-
-
+        """
+        Recursively finds valid source files (.py, .md, .txt, .rst)
+        """
+        valid_extensions = {".py", ".md", ".txt", ".rst"}
+        valid_files = []
+        for root, _, files in os.walk(self.raw_dir):
+            for file in files:
+                if Path(file).suffix in valid_extensions:
+                    valid_files.append(Path(root) / file)
+        return valid_files
+    
     def run_ingestion(self) -> None:
         ...
