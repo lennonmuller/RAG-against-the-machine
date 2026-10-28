@@ -118,3 +118,32 @@ class BaseChunker:
             ))
 
         return chunks
+
+
+class PythonChunker(BaseChunker):
+    """
+    Chunking stratergy specifically designed for python source code
+    """
+
+    def chunk(self, text: str, file_path: str) -> List[DocumentChunk]:
+        # split by top-level class or function def, then paragraphs, then lines
+        separators = [
+            r"(?=\n(?:class|def|async def)\s)",
+            r"(?=\n\n)",
+            r"(?=\n)"
+        ]
+        return self._recursive_chunk(text, 0, file_path, separators)
+
+
+class MarkdownChunker(BaseChunker):
+    """
+    Chunking strategy specifically designed for Markdown an plain text.
+    """
+    def chunk(self, text: str, file_path: str) -> List[DocumentChunk]:
+        # split by headers, then paragraphers, then lines
+        separators = [
+            r"(?=\n#+\s)",
+            r"(?=\n\n)",
+            r"(?=\n)"
+        ]
+        return self._recursive_chunk(text, 0, file_path, separators)
