@@ -68,16 +68,18 @@ class BaseChunker:
         current_chunk_start = absolute_start
 
         for local_start, local_end, segment in segments:
-            segment_length = len(segment)
+            segment_len = len(segment)
 
             # If a single segment is too big, recurse on it
-            if segment_length > self.max_chunk_size and current_chunk_text:
-                chunks.append(DocumentChunk(
-                    file_path=file_path,
-                    text=current_chunk_text,
-                    first_character_index=current_chunk_start,
-                    last_character_index=current_chunk_start + len(current_chunk_text)
-                ))  # first, yield whateve accumulated
+            if segment_len > self.max_chunk_size:
+                if current_chunk_text:
+                    chunks.append(DocumentChunk(
+                        file_path=file_path,
+                        text=current_chunk_text,
+                        first_character_index=current_chunk_start,
+                        last_character_index=current_chunk_start + len(current_chunk_text)
+                    ))  # first, yield whateve accumulated
+                    current_chunk_text = ""
 
                 # Then recurse into the oversized segment
                 sub_chunks = self._recursive_chunk(
@@ -92,7 +94,7 @@ class BaseChunker:
                 continue
 
             # If adding this segment exceeds max size, yield the current chunk
-            if len(current_chunk_start) + segment_length > self.max_chunk_size:
+            if len(current_chunk_text) + segment_len > self.max_chunk_size:
                 chunks.append(DocumentChunk(
                     file_path=file_path,
                     text=current_chunk_text,
@@ -106,4 +108,13 @@ class BaseChunker:
                     current_chunk_start = absolute_start + local_start
                 current_chunk_text += segment
 
-            return chunks
+
+        if current_chunk_text:
+            chunks.append(DocumentChunk(
+                file_path=file_path,
+                text=current_chunk_text,
+                first_character_index=current_chunk_start,
+                last_character_index=current_chunk_start + len(current_chunk_text)
+            ))
+
+        return chunks
