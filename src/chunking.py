@@ -1,8 +1,8 @@
 import re
 from dataclasses import dataclass
 
-import List
-import Tuple
+from typing import List
+from typing import Tuple
 
 
 @dataclass

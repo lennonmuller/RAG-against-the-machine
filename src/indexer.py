@@ -2,10 +2,11 @@ import os
 import pickle
 from pathlib import Path
 
-import List
+from typing import List
 from tqdm import tqdm
 
 from src.chunking import DocumentChunk, MarkdownChunker, PythonChunker
+
 
 class ProjectIndexer:
     """
@@ -36,4 +37,30 @@ class ProjectIndexer:
         return valid_files
     
     def run_ingestion(self) -> None:
-        ...
+        """Reads all files, chunks them, and saves to disk."""
+        files = self._get_valid_files()
+        print(f"Found {len(files)} files to index in '{self.raw_dir}'.")
+
+        all_chunks: List[DocumentChunk] = []
+
+        for file_path in tqdm(files, desc="Chunking files"):
+            try:
+                str_path = str(file_path)
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                if file_path.suffix == ".py":
+                    chunks = self.python_chunker.chunk(content, str_path)
+                else:
+                    chunks = self.markdown_chunker.chunk(content, str_path)
+
+                all_chunks.extend(chunks)
+
+            except Exception as e:
+                print(f"Warning: Failed to process {file_path}. Reason: {e}")
+
+        chunks_path = self.processed_dir / "chunks.pkl"
+        with open(chunks_path, "wb") as f:
+            pickle.dump(all_chunks, f)
+
+        print(f"Ingestion complete! Indexed {len(all_chunks)} chunks under {self.processed_dir}/")

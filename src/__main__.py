@@ -1,6 +1,7 @@
 import fire
 from tqdm import tqdm
 
+from src.indexer import ProjectIndexer
 
 class RAGPipeline:
     """
@@ -9,8 +10,9 @@ class RAGPipeline:
 
     def index(self, max_chunk_size: int = 2000) -> None:
         """Ingests data/raw/ and builds the index under data/processed/."""
-        print(f"Iniciando indexação com max_chunk_size={max_chunk_size}...")
-        # TODO: Implementar Fase 1 e 2
+        print(f"Starting indexing with max_chunk_size={max_chunk_size}...")
+        indexer = ProjectIndexer(max_chunk_size=max_chunk_size)
+        indexer.run_ingestion()
 
     def search(self, query: str, k: int) -> None:
         """Returns the top-k sources for a single query."""
