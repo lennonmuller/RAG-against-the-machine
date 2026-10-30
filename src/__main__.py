@@ -3,6 +3,7 @@ from tqdm import tqdm
 
 from src.indexer import ProjectIndexer
 
+
 class RAGPipeline:
     """
     RAG against the machine - CLI principal.

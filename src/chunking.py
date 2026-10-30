@@ -16,7 +16,6 @@ class DocumentChunk:
     last_character_index: int
 
 
-
 class BaseChunker:
     """
     Base class for recursive character chunking
@@ -65,6 +64,7 @@ class PythonChunker(BaseChunker):
             add_start_index=True
         )
         super().__init__(splitter)
+
 
 class MarkdownChunker(BaseChunker):
     """
