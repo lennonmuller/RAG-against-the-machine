@@ -11,3 +11,4 @@ wheels/
 vllm-0.10.1/
 .vscode
 moulinette/
+data/
