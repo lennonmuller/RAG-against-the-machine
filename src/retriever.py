@@ -12,6 +12,7 @@ from src.models import (
     StudentSearchResults,
 )
 
+
 class BM25Retriever:
     """
     Loads the saved BM25 index and retrieves relevant documents for queries.
@@ -35,5 +36,28 @@ class BM25Retriever:
         clean_text = text.replace('.', ' ').replace('_', ' ').replace('(', ' ').replace(')', ' ').lower()
         return clean_text.split()
 
-    def search_single(self):
-        ...
+    def search_single(self, query_id: str, query: str, k: int) -> MinimalSearchResults:
+        """
+        Search single minimal results based on recall@k.
+        """
+        tokenized_query = self._tokenize(query)
+        scores = self.bm25.get_scores(tokenized_query)
+
+        top_k_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
+
+        retrieved_sources = []
+        for idx in top_k_indices:
+            chunk = self.chunks[idx]
+
+            source = MinimalSource(
+                file_path=chunk.file_path,
+                first_character_index=chunk.first_character_index,
+                last_character_index=chunk.last_character_index
+            )
+            retrieved_sources.append(source)
+
+        return MinimalSource(
+            question_id=query_id,
+            question=query,
+            retrieved_sources=retrieved_sources
+        )
