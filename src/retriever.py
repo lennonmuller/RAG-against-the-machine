@@ -56,8 +56,11 @@ class BM25Retriever:
             )
             retrieved_sources.append(source)
 
-        return MinimalSource(
+        return MinimalSearchResults(
             question_id=query_id,
             question=query,
             retrieved_sources=retrieved_sources
         )
+
+    def search_dataset(self):
+        ...
