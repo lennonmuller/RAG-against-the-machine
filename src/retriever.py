@@ -1,5 +1,6 @@
 import json
 import pickle
+import re
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -33,8 +34,7 @@ class BM25Retriever:
             self.bm25 = data["bm25_model"]
 
     def _tokenize(self, text: str) -> List[str]:
-        clean_text = text.replace('.', ' ').replace('_', ' ').replace('(', ' ').replace(')', ' ').lower()
-        return clean_text.split()
+        return re.findall(r'[a-z0-9]+', text.lower())
 
     def search_single(self, query_id: str, query: str, k: int) -> MinimalSearchResults:
         """
@@ -62,5 +62,35 @@ class BM25Retriever:
             retrieved_sources=retrieved_sources
         )
 
-    def search_dataset(self):
-        ...
+    def search_dataset(self, dataset_path: str, k: int, save_directory: str) -> None:
+        """
+        Runs batch retrieval on a full dataset and dumps the JSON schema required.
+        """
+        out_dir = Path(save_directory)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        dataset_name = Path(dataset_path).name
+        out_file = out_dir / dataset_name
+
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            raw_json = json.load(f)
+
+        dataset = RagDataset.model_validate(raw_json)
+
+        results_list = []
+        for q in tqdm(dataset.rag_questions, desc="Searching queries"):
+            res = self.search_single(
+                query_id=q.question_id,
+                query=q.question,
+                k=k
+            )
+            results_list.append(res)
+
+        final_output = StudentSearchResults(
+            search_results=results_list,
+            k=k
+        )
+
+        with open(out_file, "w", encoding="utf-8") as f:
+            f.write(final_output.model_dump_json(indent=2))
+
+        print(f"Saved student_search_results to {out_file}")

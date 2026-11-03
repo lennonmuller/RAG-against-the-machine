@@ -2,6 +2,7 @@ import fire
 from tqdm import tqdm
 
 from src.indexer import ProjectIndexer
+from src.retriever import BM25Retriever
 
 
 class RAGPipeline:
@@ -17,13 +18,16 @@ class RAGPipeline:
 
     def search(self, query: str, k: int) -> None:
         """Returns the top-k sources for a single query."""
-        print(f"Buscando '{query}' (Top {k})...")
-        # TODO: Implementar Fase 2
+        print(f"Searching '{query}' (Top {k})...")
+        retriever = BM25Retriever()
+        result = retriever.search_single(query_id="cli-manual", query=query, k=k)
+        print(result.model_dump_json(indent=2))
 
     def search_dataset(self, dataset_path: str, k: int, save_directory: str) -> None:
         """Run the search over a complete dataset and write a JSON file."""
-        print(f"Buscando dataset em {dataset_path}...")
-        # TODO: Implementar Fase 2
+        print(f"Searching dataset in {dataset_path}...")
+        retriever = BM25Retriever()
+        retriever.search_dataset(dataset_path=dataset_path, k=k, save_directory=save_directory)
 
     def answer(self, query: str, k: int) -> None:
         """Respond to a single query using the retrieved context."""

@@ -60,7 +60,7 @@ class PythonChunker(BaseChunker):
         splitter = RecursiveCharacterTextSplitter.from_language(
             language=Language.PYTHON,
             chunk_size=max_chunk_size,
-            chunk_overlap=0,
+            chunk_overlap=200,
             add_start_index=True
         )
         super().__init__(splitter)
@@ -73,7 +73,7 @@ class MarkdownChunker(BaseChunker):
     def __init__(self, max_chunk_size: int = 2000):
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=max_chunk_size,
-            chunk_overlap=0,
+            chunk_overlap=200,
             add_start_index=True
         )
         super().__init__(splitter)

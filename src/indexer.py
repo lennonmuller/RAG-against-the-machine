@@ -1,9 +1,10 @@
 import os
 import pickle
+import re
 from pathlib import Path
 from typing import List
 
-from rank_bm25 import BM25Okapi
+from rank_bm25 import BM25Plus
 from tqdm import tqdm
 
 from src.chunking import DocumentChunk, MarkdownChunker, PythonChunker
@@ -38,8 +39,7 @@ class ProjectIndexer:
 
     def _tokenize(self, text: str) -> List[str]:
         """Simple whitespace and lowercasing tokenizer for bm25"""
-        clean_text = text.replace('.', ' ').replace('_', ' ').replace('(', ' ').replace(')', ' ').lower()
-        return clean_text.split()
+        return re.findall(r'[a-z0-9]+', text.lower())
 
     def run_ingestion(self) -> None:
         """Reads all files, chunks them, builds BM25 index, and saves to disk."""
@@ -68,7 +68,7 @@ class ProjectIndexer:
         tokenized = [self._tokenize(chunk.text) for chunk in tqdm(all_chunks, desc="Tokenizing")]
 
         print("Training BM25 model...")
-        bm25_model = BM25Okapi(tokenized)
+        bm25_model = BM25Plus(tokenized)
 
         index_data = {
             "chunks": all_chunks,
