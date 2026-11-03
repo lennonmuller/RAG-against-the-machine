@@ -1,6 +1,7 @@
 import fire
 from tqdm import tqdm
 
+from src.generator import AnswerGenerator
 from src.indexer import ProjectIndexer
 from src.retriever import BM25Retriever
 
@@ -31,13 +32,24 @@ class RAGPipeline:
 
     def answer(self, query: str, k: int) -> None:
         """Respond to a single query using the retrieved context."""
-        print(f"Gerando resposta para '{query}'...")
-        # TODO: Implementar Fase 3 e 4
+        print(f"Generating answer for '{query}'...")
+        # 1. Retrieve
+        from src.retriever import BM25Retriever
+        retriever = BM25Retriever()
+        search_result = retriever.search_single(query_id="cli-manual", query=query, k=k)
+
+        generator = AnswerGenerator()
+        answer_text = generator._generate_single_answer(search_result.question, search_result.retrieved_sources)
+
+        print("\n=== ANSWER ===")
+        print(answer_text)
+        print("==============\n")
 
     def answer_dataset(self, student_search_results_path: str, save_directory: str) -> None:
         """Generates responses for a dataset based on search results."""
-        print(f"Gerando respostas baseadas em {student_search_results_path}...")
-        # TODO: Implementar Fase 4
+        print(f"Generating answers based on {student_search_results_path}...")
+        generator = AnswerGenerator()
+        generator.answer_dataset(student_search_results_path, save_directory)
 
     def evaluate(self, student_search_results_path: str, dataset_path: str) -> None:
         """Evaluates and reports recall@k (for internal testing only)."""
