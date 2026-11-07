@@ -1,203 +1,70 @@
-# Moulinette
+*This project has been created as part of the 42 curriculum by lmuler-f.*
 
+# RAG Against the Machine
 
+## Description
+This project implements a Retrieval-Augmented Generation (RAG) pipeline from scratch. The goal is to ingest a massive codebase (vLLM), index it, retrieve the most relevant snippets for user queries, and feed them into a local language model (`Qwen3-0.6B`) to generate accurate, context-grounded answers.
 
-Evaluation system for RAG submissions. Validates your search results and calculates recall metrics.
-
-
-
-## Installation
-
-
-
+## Instructions
+### Installation
+This project strictly uses `uv` as the package manager.
 ```bash
-
-uv venv && uv sync
-
-direnv allow  # or source .envrc
-
+# Install dependencies
+make install
 ```
+### Execution
 
-
-## CLI Commands
-
-
-
-### evaluate_student_search_results
-
-
-
-Evaluate your search results against the ground truth dataset.
-
-
-
+The system provides a CLI built with `fire`.
 ```bash
+# 1. Index the corpus (must place the vLLM corpus in data/raw/)
+make run ARGS="index --max_chunk_size 2000"
 
-uv run python -m moulinette evaluate_student_search_results \
+# 2. Search a single query
+make run ARGS="search 'What is vLLM?' --k 5"
 
-    <student_results_path> \
-
-    <dataset_path> \
-
-    [--k K] \
-
-    [--max_context_length MAX_LENGTH]
-
+# 3. Generate an answer for a single query
+make run ARGS="answer 'What hardware platforms does vLLM support?' --k 5"
 ```
 
+## System Architecture
 
+The architecture is divided into three decoupled layers:
 
+1. **Ingestion & Indexing:** Reads raw files and builds a BM25 inverted index.
 
-**Arguments:**
+2. **Retrieval:** A fast search engine that tokenizes queries and fetches the top-K relevant `DocumentChunks`.
 
-| Argument | Type | Default | Description |
+3. **Generation:** Utilizes Hugging Face's `transformers` to load `Qwen3-0.6B` and generate answers based strictly on the retrieved context using a specialized Chat Template.
+Data contracts between layers are strictly validated using `pydantic`.
 
-|----------|------|---------|-------------|
 
-| `student_results_path` | str | required | Path to student search results JSON |
+## Chunking Strategy
 
-| `dataset_path` | str | required | Path to ground truth dataset JSON |
+To maximize retrieval accuracy, we use `langchain-text-splitters`.
 
-| `--k` | int | 10 | Maximum number of sources per question |
+- **Python Code:** Parsed using AST-aware tules(`RecursiveCharacterTextSplitter.from_language`), ensuring classes and funcions are not arbitrarily broken.
+- **Markdown/Text:** Split by headers and paragraphs. Both strategies a chunk_overlap of 200 characters to prevent cutting context at critical boundaries, while strictly tracking `first_character_index` and `last_character_index`.
 
-| `--max_context_length` | int | 2000 | Maximum context length per source |
+## Retrieval Method
+I implemented **Lexical Searching using BM25** (via `rank-bm25`).
+Unlike standard TF-IDF, BM25 natively handles term frequency saturation and document length normalization. I applied a custom regex tokenizer `[a-z0-9_]+` to preserve crucial programming identifiers (e.g., oreserving `lm_eval` instead of splitting it into `lm` and `eval`), which drastically improved code-related query matching.
 
+## Performance Analysis
+-  **Indexing Time:** ~5 seconds for nearly 2000 files (well below the 5-minute limit).
+- **Retrieval Throughput:** Processes 100 queries in 1 < second.
+- **Recall@5:** Achieved **83,0%** on the `dataset_docs_public.json`, surpassing the 80% threshold.
 
+## Design Decisions
+- **SOLID Principles:** Handles (Chunking, Retriever, Generator) are encapsuled and interfaced through the CLI layer.
+- **Standardized Libraries:** Adopted industry-standard libraries (`langchain` for splitting, `transformers` for generation) to prevent boilerplate code while keeping the orchestration higly customized.
 
-**Example:**
+## Challenges Faced
+- **Base Model Limitations:** The 0,6B parameter model tend to hallucinate or enter repetition loops. **Solution:** I implemented a strict chat template and added a `repetition_penalty` to the generation config.
+- **Hardware Limitations:** Running inference on CPU for large baches caused OOM (Out Of Memory) kills. **Solution:** I optimized the model loading with `low_cpu_mem_usage=True` and limited the context window.
 
-```bash
-
-uv run python -m moulinette evaluate_student_search_results \
-
-    ../data/output/search_results/dataset_code_public.json \
-
-    ../data/datasets/AnsweredQuestions/dataset_code_public.json \
-
-    --k 10 \
-
-    --max_context_length 2000
-
-```
-
-
-
-**Output:**
-
-- Validates student data format
-
-- Calculates Recall@1, Recall@3, Recall@5, Recall@10
-
-- Returns `True` if Recall@5 >= 50%, `False` otherwise
-
-
-
-
-### evaluate_student_answers
-
-
-
-Evaluate your generated answers (not yet implemented).
-
-
-
-```bash
-
-uv run python -m moulinette evaluate_student_answers <student_answer_path>
-
-```
-
-
-
-## Pass Criteria
-
-
-| Dataset | Metric | Threshold |
-
-|---------|--------|-----------|
-
-| Code | Recall@5 | >= 50% |
-
-| Docs | Recall@5 | >= 80% |
-
-
-
-## Input File Formats
-
-
-
-### Your Search Results (`student_results_path`)
-
-```json
-
-{
-
-  "search_results": [
-
-    {
-
-      "question_id": "uuid",
-
-      "question": "What is the question text?",
-
-      "retrieved_sources": [
-
-        {
-
-          "file_path": "data/raw/vllm-0.10.1/path/to/file",
-
-          "first_character_index": 0,
-
-          "last_character_index": 500
-
-        }
-
-      ]
-
-    }
-
-  ],
-
-  "k": 10
-
-}
-
-```
-
-
-
-### Ground Truth Dataset (`dataset_path`)
-
-```json
-
-{
-
-  "rag_questions": [
-
-    {
-
-      "question_id": "uuid",
-
-      "question": "What is...",
-
-      "answer": "The answer is...",
-
-      "sources": [
-
-        {
-
-          "file_path": "data/raw/vllm-0.10.1/path/to/file",
-
-          "first_character_index": 0,
-
-          "last_character_index": 500
-
-        }
-
-      ]
-
-    }
-
-  ]
-
-}
+## Resources
+- [BM25 Algorithm Overview](https://en.wikipedia.org/wiki/Okapi_BM25)
+- [Hugging Face Transformers Documentation](https://huggingface.co/docs/transformers/index)
+- [vLLM Official Repository](https://github.com/vllm-project/vllm)
+- [tqdm Documentation](https://tqdm.github.io/)
+- AI was used as a brainstorming partner (ChatGPT/Claude) to refine the custom BM25 tokenizer regex and troubleshoot PyTorch CPU memory limits during batch generation.
