@@ -14,16 +14,42 @@ make install
 ```
 ### Execution
 
-The system provides a CLI built with `fire`.
+The system provides a CLI built with `fire`. Below are all the required commands:
+
+**1. Index the corpus**
+Ingests files from `data/raw/` and builds the index.
 ```bash
-# 1. Index the corpus (must place the vLLM corpus in data/raw/)
 make run ARGS="index --max_chunk_size 2000"
+```
 
-# 2. Search a single query
+**2. Search a single query**
+Returns the top-K sources for a single question.
+```bash
 make run ARGS="search 'What is vLLM?' --k 5"
+```
 
-# 3. Generate an answer for a single query
+**3. Search a full dataset**
+Runs batch search over a dataset and outputs a JSON file with results.
+```bash
+make run ARGS="search_dataset --dataset_path data/datasets/UnansweredQuestions/dataset_docs_public.json --k 10 --save_directory data/output/search_results/UnansweredQuestions"
+```
+
+**4. Generate an answer for a single query**
+Retrieves context and uses the LLM to generate an answer.
+```bash
 make run ARGS="answer 'What hardware platforms does vLLM support?' --k 5"
+```
+
+**5. Generate answers for a full dataset**
+Reads search results, generates answers, and outputs the final JSON.
+```bash
+make run ARGS="answer_dataset --student_search_results_path data/output/search_results/UnansweredQuestions/dataset_docs_public.json --save_directory data/output/search_results_and_answer/UnansweredQuestions"
+```
+
+**6. Internal Evaluation**
+Reports our internal implementation of Recall@K against a ground-truth dataset (independent of the official moulinette).
+```bash
+make run ARGS="evaluate --student_search_results_path data/output/search_results/UnansweredQuestions/dataset_docs_public.json --dataset_path data/datasets/AnsweredQuestions/dataset_docs_public.json"
 ```
 
 ## System Architecture

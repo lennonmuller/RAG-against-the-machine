@@ -1,6 +1,6 @@
 import fire
-from tqdm import tqdm
 
+from src.evaluator import InternalEvaluator
 from src.generator import AnswerGenerator
 from src.indexer import ProjectIndexer
 from src.retriever import BM25Retriever
@@ -53,8 +53,9 @@ class RAGPipeline:
 
     def evaluate(self, student_search_results_path: str, dataset_path: str) -> None:
         """Evaluates and reports recall@k (for internal testing only)."""
-        print(f"Avaliando resultados de {student_search_results_path} contra {dataset_path}...")
-        # TODO: Implementar avaliação básica
+        print(f"Evaluating results of {student_search_results_path} against {dataset_path}...")
+        evaluator = InternalEvaluator()
+        evaluator.evaluate(student_search_results_path, dataset_path)
 
 
 if __name__ == '__main__':

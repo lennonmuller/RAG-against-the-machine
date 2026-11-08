@@ -1,5 +1,5 @@
 import json
-from pathlib import Path
+
 from src.models import MinimalSource, RagDataset, StudentSearchResults
 
 
@@ -35,4 +35,44 @@ class InternalEvaluator:
         """
         Loads the student results and ground truth, calculates and prints the recall.
         """
-        ...
+        with open(student_search_results_path, "r", encoding="utf-8") as f:
+            student_data = StudentSearchResults.model_validate(json.load(f))
+
+        with open(dataset_path, "r", encoding="utf-8") as f:
+            truth_data = RagDataset.model_validate(json.load(f))
+
+        total_questions = len(truth_data.rag_questions)
+        if total_questions == 0:
+            print("Ground truth dataset is empty.")
+            return
+
+        student_results_dict = {res.question_id: res for res in student_data.search_results}
+
+        hits = 0
+
+        for truth_q in truth_data.rag_questions:
+            if not hasattr(truth_q, 'sources') or not truth_q.sources:
+                continue
+
+            student_q = student_results_dict.get(truth_q.question_id)
+            if not student_q:
+                continue
+
+            question_hit = False
+            for true_src in truth_q.sources:
+                for pred_src in student_q.retrieved_sources:
+                    if self._check_overlap(true_src, pred_src):
+                        question_hit = True
+                        break
+                if question_hit:
+                    break
+
+            if question_hit:
+                hits += 1
+
+        recall = hits / total_questions
+        print(40*"=")
+        print("Internal Evaluation Results:")
+        print(f"Questions evaluated: {total_questions}")
+        print(f"Recall@{student_data.k}: {recall:.3f} ({recall * 100:.1f}%)")
+        print(40*"=")    
