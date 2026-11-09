@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 from typing import List
 
@@ -9,7 +8,6 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from src.models import (
     MinimalAnswer,
-    MinimalSearchResults,
     MinimalSource,
     StudentSearchResults,
     StudentSearchResultsAndAnswer,
@@ -30,7 +28,7 @@ class AnswerGenerator:
             model_name,
             dtype=torch.float16 if self.device == "cuda" else torch.float32,
             low_cpu_mem_usage=True
-        ).to(self.device)
+        ).to(self.device)  # type: ignore
 
         # Some Qwen models need pad_token defined
         if self.tokenizer.pad_token_id is None:
@@ -59,13 +57,15 @@ class AnswerGenerator:
         context_str = "\n\n".join(context_parts[:3])
 
         messages = [
-            {"role": "system", "content": "You are a technical assistant. Answer strictly based on the context provided. Be brief."},
+            {"role": "system",
+             "content": "You are a technical assistant. Answer strictly based on the context provided. Be brief."
+             },
             {"role": "user", "content": f"Context:\n{context_str}\n\nQuestion: {question}"}
         ]
 
         text_prompt = self.tokenizer.apply_chat_template(
-            messages, 
-            tokenize=False, 
+            messages,
+            tokenize=False,
             add_generation_prompt=True
         )
 
@@ -85,7 +85,8 @@ class AnswerGenerator:
         # Decode only the new generated tokens
         input_length = inputs.input_ids.shape[1]
         generated_tokens = outputs[0][input_length:]
-        answer = self.tokenizer.decode(generated_tokens, skip_special_tokens=True).strip()
+        answer_raw = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+        answer = str(answer_raw).strip()
 
         return answer
 

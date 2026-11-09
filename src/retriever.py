@@ -2,10 +2,11 @@ import json
 import pickle
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import List, Any
 
 from tqdm import tqdm
 
+from src.chunking import DocumentChunk
 from src.models import (
     MinimalSearchResults,
     MinimalSource,
@@ -20,8 +21,8 @@ class BM25Retriever:
     """
     def __init__(self, index_path: str = "data/processed/index.pkl"):
         self.index_path = Path(index_path)
-        self.chunks = []
-        self.bm25 = None
+        self.chunks: List[DocumentChunk] = []
+        self.bm25: Any = None
         self._load_index()
 
     def _load_index(self) -> None:

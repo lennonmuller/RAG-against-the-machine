@@ -33,8 +33,6 @@ class RAGPipeline:
     def answer(self, query: str, k: int) -> None:
         """Respond to a single query using the retrieved context."""
         print(f"Generating answer for '{query}'...")
-        # 1. Retrieve
-        from src.retriever import BM25Retriever
         retriever = BM25Retriever()
         search_result = retriever.search_single(query_id="cli-manual", query=query, k=k)
 

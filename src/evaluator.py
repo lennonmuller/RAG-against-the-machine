@@ -75,4 +75,4 @@ class InternalEvaluator:
         print("Internal Evaluation Results:")
         print(f"Questions evaluated: {total_questions}")
         print(f"Recall@{student_data.k}: {recall:.3f} ({recall * 100:.1f}%)")
-        print(40*"=")    
+        print(40*"=")
