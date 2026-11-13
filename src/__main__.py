@@ -1,3 +1,5 @@
+import sys
+
 import fire
 
 from src.evaluator import InternalEvaluator
@@ -13,6 +15,8 @@ class RAGPipeline:
 
     def index(self, max_chunk_size: int = 2000) -> None:
         """Ingests data/raw/ and builds the index under data/processed/."""
+        if max_chunk_size > 2000:
+            raise ValueError("max_chunk_size limit is 2000")
         print(f"Starting indexing with max_chunk_size={max_chunk_size}...")
         indexer = ProjectIndexer(max_chunk_size=max_chunk_size)
         indexer.run_ingestion()
@@ -57,4 +61,8 @@ class RAGPipeline:
 
 
 if __name__ == '__main__':
-    fire.Fire(RAGPipeline)
+    try:
+        fire.Fire(RAGPipeline)
+    except ValueError as f:
+        print(f"Error: {f}")
+        sys.exit(1)
