@@ -39,7 +39,7 @@ class ProjectIndexer:
 
     def _tokenize(self, text: str) -> List[str]:
         """Simple whitespace and lowercasing tokenizer for bm25"""
-        return re.findall(r'[a-z0-9]+', text.lower())
+        return re.findall(r'[a-z0-9_]+', text.lower())
 
     def run_ingestion(self) -> None:
         """Reads all files, chunks them, builds BM25 index, and saves to disk."""

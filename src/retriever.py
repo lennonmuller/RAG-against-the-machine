@@ -35,7 +35,7 @@ class BM25Retriever:
             self.bm25 = data["bm25_model"]
 
     def _tokenize(self, text: str) -> List[str]:
-        return re.findall(r'[a-z0-9]+', text.lower())
+        return re.findall(r'[a-z0-9_]+', text.lower())
 
     def search_single(self, query_id: str, query: str, k: int) -> MinimalSearchResults:
         """
