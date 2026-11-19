@@ -2,10 +2,11 @@ import json
 import pickle
 import re
 from pathlib import Path
-from typing import List, Any
+from typing import Any, List
 
 from tqdm import tqdm
 
+from src.cache import QueryCache
 from src.chunking import DocumentChunk
 from src.models import (
     MinimalSearchResults,
@@ -19,13 +20,21 @@ class BM25Retriever:
     """
     Loads the saved BM25 index and retrieves relevant documents for queries.
     """
+    _INDEX_CACHE: dict[str, tuple[Any, Any]] = {}
+
     def __init__(self, index_path: str = "data/processed/index.pkl"):
         self.index_path = Path(index_path)
         self.chunks: List[DocumentChunk] = []
         self.bm25: Any = None
+        self.cache = QueryCache()
         self._load_index()
 
     def _load_index(self) -> None:
+        """Loads the chunks and BM25 model, using in-memory cache if available."""
+        key = str(self.index_path.resolve())
+        if key in BM25Retriever._INDEX_CACHE:
+            self.chunks, self.bm25 = BM25Retriever._INDEX_CACHE[key]
+            return
         if not self.index_path.exists():
             raise FileNotFoundError(f"Index file {self.index_path} not found. Run index command first")
 
@@ -33,6 +42,7 @@ class BM25Retriever:
             data = pickle.load(f)
             self.chunks = data["chunks"]
             self.bm25 = data["bm25_model"]
+            BM25Retriever._INDEX_CACHE[key] = (self.chunks, self.bm25)
 
     def _tokenize(self, text: str) -> List[str]:
         return re.findall(r'[a-z0-9_]+', text.lower())
@@ -41,6 +51,13 @@ class BM25Retriever:
         """
         Search single minimal results based on recall@k.
         """
+        cached = self.cache.get("search", query, k)
+        if cached is not None:
+            return MinimalSearchResults(
+                question_id=query_id,
+                question=query,
+                retrieved_sources=[MinimalSource.model_validate(s) for s in cached],
+            )
         tokenized_query = self._tokenize(query)
         scores = self.bm25.get_scores(tokenized_query)
 
@@ -56,6 +73,13 @@ class BM25Retriever:
                 last_character_index=chunk.last_character_index
             )
             retrieved_sources.append(source)
+
+        self.cache.set(
+            "search",
+            query,
+            k,
+            [s.model_dump() for s in retrieved_sources],
+        )
 
         return MinimalSearchResults(
             question_id=query_id,
