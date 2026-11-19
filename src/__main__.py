@@ -89,6 +89,13 @@ class RAGPipeline:
         evaluator = InternalEvaluator()
         evaluator.evaluate(student_search_results_path, dataset_path)
 
+    def serve(self, host: str = "127.0.0.1", port: int = 8000) -> None:
+        """Starts the local HTTP API server using uvicorn."""
+        import uvicorn
+
+        print(f"Starting local HTTP API at http://{host}:{port}")
+        uvicorn.run("src.api:app", host=host, port=port, reload=False)
+
 
 if __name__ == '__main__':
     try:
