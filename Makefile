@@ -1,22 +1,30 @@
+UV := $(HOME)/.local/bin/uv
+SGOINFRE := $(shell [ -d /sgoinfre/$(USER) ] && echo /sgoinfre/$(USER) || echo $(HOME))
+UV_ENV := UV_CACHE_DIR=$(SGOINFRE)/.cache/uv UV_PROJECT_ENVIRONMENT=$(SGOINFRE)/.venv_cmm HF_HOME=$(SGOINFRE)/.cache/huggingface
+
+
 .PHONY: install run debug clean lint lint-strict
 
 install:
-	uv sync
+	mkdir -p $(SGOINFRE)/.cache/uv
+	mkdir -p $(SGOINFRE)/.venv_cmm
+	mkdir -p $(SGOINFRE)/.cache/huggingface
+	$(UV_ENV) $(UV) sync
 
 run:
-	uv run python -m src $(ARGS)
+	$(UV_ENV) $(UV) run python -m src $(ARGS)
 
 debug:
-	uv run python -m pdb -m src $(ARGS)
+	$(UV_ENV) $(UV) run python -m pdb -m src $(ARGS)
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 
 lint:
-	uv run flake8 .
-	uv run mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	$(UV_ENV) $(UV) run flake8 .
+	$(UV_ENV) $(UV) run mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 
 lint-strict:
-	uv run flake8 .
-	uv run mypy . --strict
+	$(UV_ENV) $(UV) run flake8 .
+	$(UV_ENV) $(UV) run mypy . --strict
