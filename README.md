@@ -93,4 +93,5 @@ Unlike standard TF-IDF, BM25 natively handles term frequency saturation and docu
 - [Hugging Face Transformers Documentation](https://huggingface.co/docs/transformers/index)
 - [vLLM Official Repository](https://github.com/vllm-project/vllm)
 - [tqdm Documentation](https://tqdm.github.io/)
+- [Pickle - Python object serialization](https://docs.python.org/3/library/pickle.html)
 - AI was used as a brainstorming partner (ChatGPT/Claude) to refine the custom BM25 tokenizer regex and troubleshoot PyTorch CPU memory limits during batch generation.
