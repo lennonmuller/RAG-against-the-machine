@@ -38,24 +38,36 @@ class RAGPipeline:
         index_path: str = "data/processed/index.pkl",
     ) -> None:
         """Returns the top-k sources for a single query."""
-        print(f"Searching '{query}' (Top {k})...")
-        retriever = BM25Retriever(index_path=index_path)
-        result = retriever.search_single(query_id="cli-manual", query=query, k=k)
-        print(result.model_dump_json(indent=2))
+        try:
+            query_str = str(query)
+            if k <= 0:
+                print("Error: k must be greater than 0.")
+                return
+            print(f"Searching '{query_str}' (Top {k})...")
+            retriever = BM25Retriever(index_path=index_path)
+            result = retriever.search_single(
+                query_id="cli-manual", query=query_str, k=k
+            )
+            print(result.model_dump_json(indent=2))
+        except Exception as e:
+            print(f"Error during search: {e}")
 
     def search_dataset(
         self,
         dataset_path: str,
-        k: int,
-        save_directory: str,
+        k: int = 10,
+        save_directory: str = "data/output/search_results",
         index_path: str = "data/processed/index.pkl",
     ) -> None:
         """Runs search over a whole dataset and writes a StudentSearchResults JSON file."""
-        print(f"Searching dataset in {dataset_path}...")
-        retriever = BM25Retriever(index_path=index_path)
-        retriever.search_dataset(
-            dataset_path=dataset_path, k=k, save_directory=save_directory
-        )
+        try:
+            print(f"Searching dataset in {dataset_path}...")
+            retriever = BM25Retriever(index_path=index_path)
+            retriever.search_dataset(
+                dataset_path=dataset_path, k=k, save_directory=save_directory
+            )
+        except Exception as e:
+            print(f"Error during search_dataset: {e}")
 
     def answer(
         self,
@@ -64,18 +76,31 @@ class RAGPipeline:
         index_path: str = "data/processed/index.pkl",
     ) -> None:
         """Answers a single query using the retrieved context."""
-        print(f"Generating answer for '{query}'...")
-        retriever = BM25Retriever(index_path=index_path)
-        search_result = retriever.search_single(query_id="cli-manual", query=query, k=k)
+        try:
+            query_str = str(query).strip()
+            if not query_str:
+                print("Error: Query cannot be empty.")
+                return
+            if k <= 0:
+                print("Error: k must be greater than 0. Cannot retrieve context.")
+                return
 
-        generator = AnswerGenerator()
-        answer_text = generator._generate_single_answer(
-            search_result.question, search_result.retrieved_sources
-        )
+            print(f"Generating answer for '{query_str}'...")
+            retriever = BM25Retriever(index_path=index_path)
+            search_result = retriever.search_single(
+                query_id="cli-manual", query=query_str, k=k
+            )
 
-        print("\n=== ANSWER ===")
-        print(answer_text)
-        print("==============\n")
+            generator = AnswerGenerator()
+            answer_text = generator._generate_single_answer(
+                search_result.question, search_result.retrieved_sources
+            )
+
+            print("\n=== ANSWER ===")
+            print(answer_text)
+            print("==============\n")
+        except Exception as e:
+            print(f"Error during answer generation: {e}")
 
     def answer_dataset(self, student_search_results_path: str, save_directory: str) -> None:
         """Generates responses for a dataset based on search results."""

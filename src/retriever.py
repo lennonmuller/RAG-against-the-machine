@@ -45,74 +45,118 @@ class BM25Retriever:
             BM25Retriever._INDEX_CACHE[key] = (self.chunks, self.bm25)
 
     def _tokenize(self, text: str) -> List[str]:
-        return re.findall(r'[a-z0-9_]+', text.lower())
+        """
+        Code-aware tokenizer: keeps full identifiers and splits CamelCase/snake_case.
+        """
+        raw_tokens = re.findall(r"[a-zA-Z0-9_]+", text)
+        tokens: List[str] = []
+        for tok in raw_tokens:
+            lower_tok = tok.lower()
+            tokens.append(lower_tok)
+            camel_split = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", tok)
+            camel_split = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", camel_split)
+            sub_parts = re.split(r"[_\s]+", camel_split.lower())
+            if len(sub_parts) > 1:
+                tokens.extend(p for p in sub_parts if p and p != lower_tok)
+        return tokens
 
     def search_single(self, query_id: str, query: str, k: int) -> MinimalSearchResults:
         """
-        Search single minimal results based on recall@k.
+        Runs BM25 on a single query and maps the results to Pydantic MinimalSearchResults.
         """
-        cached = self.cache.get("search", query, k)
+        query_str = str(query).strip()
+        if k <= 0 or not query_str:
+            return MinimalSearchResults(
+                question_id=query_id,
+                question=query_str,
+                retrieved_sources=[],
+            )
+
+        cached = self.cache.get("search", query_str, k)
         if cached is not None:
             return MinimalSearchResults(
                 question_id=query_id,
-                question=query,
+                question=query_str,
                 retrieved_sources=[MinimalSource.model_validate(s) for s in cached],
             )
-        tokenized_query = self._tokenize(query)
-        scores = self.bm25.get_scores(tokenized_query)
 
-        top_k_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
+        tokenized_query = self._tokenize(query_str)
+        if not tokenized_query:
+            return MinimalSearchResults(
+                question_id=query_id,
+                question=query_str,
+                retrieved_sources=[],
+            )
+
+        scores = self.bm25.get_scores(tokenized_query)
+        top_k_indices = sorted(
+            range(len(scores)), key=lambda i: scores[i], reverse=True
+        )[:k]
 
         retrieved_sources = []
         for idx in top_k_indices:
             chunk = self.chunks[idx]
-
-            source = MinimalSource(
-                file_path=chunk.file_path,
-                first_character_index=chunk.first_character_index,
-                last_character_index=chunk.last_character_index
+            retrieved_sources.append(
+                MinimalSource(
+                    file_path=chunk.file_path,
+                    first_character_index=chunk.first_character_index,
+                    last_character_index=chunk.last_character_index,
+                )
             )
-            retrieved_sources.append(source)
 
         self.cache.set(
             "search",
-            query,
+            query_str,
             k,
             [s.model_dump() for s in retrieved_sources],
         )
 
         return MinimalSearchResults(
             question_id=query_id,
-            question=query,
-            retrieved_sources=retrieved_sources
+            question=query_str,
+            retrieved_sources=retrieved_sources,
         )
 
-    def search_dataset(self, dataset_path: str, k: int, save_directory: str) -> None:
+    def search_dataset(
+        self,
+        dataset_path: str,
+        k: int = 10,
+        save_directory: str = "data/output/search_results",
+    ) -> None:
         """
-        Runs batch retrieval on a full dataset and dumps the JSON schema required.
+        Runs batch retrieval on a full dataset and dumps the exact JSON schema required.
         """
+        if k <= 0:
+            print("Error: k must be greater than 0.")
+            return
+
+        try:
+            with open(dataset_path, "r", encoding="utf-8") as f:
+                raw_json = json.load(f)
+            dataset = RagDataset.model_validate(raw_json)
+        except FileNotFoundError:
+            print(f"Error: Dataset file not found: '{dataset_path}'")
+            return
+        except Exception as e:
+            print(f"Error: Failed to load or validate dataset '{dataset_path}': {e}")
+            return
+
         out_dir = Path(save_directory)
         out_dir.mkdir(parents=True, exist_ok=True)
-        dataset_name = Path(dataset_path).name
-        out_file = out_dir / dataset_name
-
-        with open(dataset_path, "r", encoding="utf-8") as f:
-            raw_json = json.load(f)
-
-        dataset = RagDataset.model_validate(raw_json)
+        out_file = out_dir / Path(dataset_path).name
 
         results_list = []
         for q in tqdm(dataset.rag_questions, desc="Searching queries"):
             res = self.search_single(
                 query_id=q.question_id,
                 query=q.question,
-                k=k
+                k=k,
             )
             results_list.append(res)
 
         final_output = StudentSearchResults(
             search_results=results_list,
-            k=k
+            k=k,
         )
 
         with open(out_file, "w", encoding="utf-8") as f:

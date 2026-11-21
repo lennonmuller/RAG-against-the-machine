@@ -38,8 +38,20 @@ class ProjectIndexer:
         return valid_files
 
     def _tokenize(self, text: str) -> List[str]:
-        """Simple whitespace and lowercasing tokenizer for bm25"""
-        return re.findall(r'[a-z0-9_]+', text.lower())
+        """
+        Code-aware tokenizer: keeps full identifiers and splits CamelCase/snake_case.
+        """
+        raw_tokens = re.findall(r"[a-zA-Z0-9_]+", text)
+        tokens: List[str] = []
+        for tok in raw_tokens:
+            lower_tok = tok.lower()
+            tokens.append(lower_tok)
+            camel_split = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", tok)
+            camel_split = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", camel_split)
+            sub_parts = re.split(r"[_\s]+", camel_split.lower())
+            if len(sub_parts) > 1:
+                tokens.extend(p for p in sub_parts if p and p != lower_tok)
+        return tokens
 
     def run_ingestion(self) -> None:
         """Reads all files, chunks them, builds BM25 index, and saves to disk."""
@@ -65,7 +77,13 @@ class ProjectIndexer:
                 print(f"Warning: Failed to process {file_path}. Reason: {e}")
 
         print(f"Tokenizing {len(all_chunks)} chunks for BM25...")
-        tokenized = [self._tokenize(chunk.text) for chunk in tqdm(all_chunks, desc="Tokenizing")]
+        tokenized = [
+            self._tokenize(
+                chunk.file_path.replace("data/raw/vllm-0.10.1/", "")
+                + "\n"
+                + chunk.text
+                ) for chunk in tqdm(all_chunks, desc="Tokenizing")
+            ]
 
         print("Training BM25 model...")
         bm25_model = BM25Plus(tokenized)
